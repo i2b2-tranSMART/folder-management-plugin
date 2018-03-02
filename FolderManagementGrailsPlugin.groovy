@@ -1,5 +1,5 @@
 class FolderManagementGrailsPlugin {
-	def version = '16.2'
+	def version = '18.1-SNAPSHOT'
 	def grailsVersion = '2.3 > *'
 	def title = 'Folder Management and Annotation for tranSMART'
 	def author = 'Florian Guitton'
