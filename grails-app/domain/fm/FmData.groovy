@@ -1,15 +1,12 @@
 package fm
 
 class FmData {
+	String fmDataType
+	String uniqueId
 
-    Long id
-    String uniqueId
-    String fmDataType
-
-    static mapping = {
-        table 'FM_DATA_UID'
-        version false
-        id column: 'FM_DATA_ID', generator: 'assigned'
-    }
-
+	static mapping = {
+		table 'FMAPP.FM_DATA_UID'
+		id generator: 'assigned', column: 'FM_DATA_ID'
+		version false
+	}
 }
