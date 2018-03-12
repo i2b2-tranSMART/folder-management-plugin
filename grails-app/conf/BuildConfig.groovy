@@ -25,6 +25,7 @@ grails.project.dependency.resolution = {
 	}
 
 	plugins {
+		compile ':hibernate:3.6.10.19', { export = false }
 		compile ':search-domain:18.1-SNAPSHOT'
 		compile ':transmart-core:18.1-SNAPSHOT'
 
