@@ -26,6 +26,7 @@ grails.project.dependency.resolution = {
 
 	plugins {
 		compile ':search-domain:18.1-SNAPSHOT'
+		compile ':transmart-core:18.1-SNAPSHOT'
 
 		build ':release:3.1.2', ':rest-client-builder:2.1.1', {
 			export = false
