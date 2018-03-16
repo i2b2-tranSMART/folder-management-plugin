@@ -4,199 +4,154 @@ import grails.converters.JSON
 import org.transmart.biomart.BioAssayPlatform
 import org.transmart.biomart.ConceptCode
 
-
 class MetaDataController {
 
-    def formLayoutService
-    def amTagTemplateService
-    def amTagItemService
-    def fmFolderService
-    def ontologyService
-    def searchKeywordService
-    def solrFacetService
-    static allowedMethods = [save: "POST", update: "POST", delete: "POST"]
+	static allowedMethods = [save: 'POST', update: 'POST', delete: 'POST']
+	static defaultAction = 'list'
 
-    def index = {
-        redirect(action: "list", params: params)
-    }
+	def searchKeywordService
 
-    def list = {
-        params.max = Math.min(params.max ? params.int('max') : 10, 100)
+	def list() {
+		params.max = Math.min(params.max ? params.int('max') : 10, 100)
+	}
 
-    }
+	def searchAction() {
+		redirect action: 'list', params: params
+	}
 
-    def searchAction =
-            {
-                redirect(action: "list", params: params)
-            }
+	/**
+	 * Find the top 10 concepts with a case-insensitive LIKE
+	 */
+	def extSearch() {
+		String value = params.term ? params.term.toUpperCase() : ''
+		String codeTypeName = params.codeTypeName ?: ''
 
-    /**
-     * Find the top 10 concepts with a case-insensitive LIKE
-     */
-    def extSearch = {
-        log.info "EXT SEARCH called"
-        def paramMap = params
-        log.info params
+		List<ConceptCode> conceptCodes = ConceptCode.executeQuery('''
+				FROM ConceptCode cc
+				WHERE cc.codeTypeName = :codeTypeName
+				  and upper(cc.codeName) LIKE :codeName
+				order by codeTypeName''', [codeTypeName: codeTypeName, codeName: value + '%'], [max: 10])
 
-        def value = params.term ? params.term.toUpperCase() : ''
-        def codeTypeName = params.codeTypeName ? params.codeTypeName : '';
+		List<Map> itemlist = []
+		for (conceptCode in conceptCodes) {
+			if (conceptCode.uniqueId != null && conceptCode.codeName != null) {
+				itemlist << [id: conceptCode.uniqueId, keyword: conceptCode.codeName,
+				             sourceAndCode: conceptCode.uniqueId, category: '', display: '']
+			}
+		}
 
-        def conceptCodes = ConceptCode.executeQuery("FROM ConceptCode cc WHERE cc.codeTypeName = :codeTypeName and  upper(cc.codeName) LIKE :codeName order by codeTypeName", [codeTypeName: codeTypeName, codeName: value + "%"], [max: 10]);
+		render(itemlist as JSON)
+	}
 
-        log.info "There are " + conceptCodes.size() + " " + params.codeTypeName + " records found in ConceptCode"
-        def itemlist = [];
-        for (conceptCode in conceptCodes) {
-            if (conceptCode.uniqueId != null && conceptCode.codeName != null) {
-                itemlist.add([id: conceptCode.uniqueId, keyword: conceptCode.codeName, sourceAndCode: conceptCode.uniqueId, category: "", display: ""]);
-            }
-        }
+	/**
+	 * Find the top 10 compounds with a case-insensitive LIKE
+	 */
+	def bioCompoundSearch() {
+		render searchKeywordService.findSearchKeywords('COMPOUND', params.term, 10) as JSON
+	}
+	/**
+	 * Find the top 10 diseases with a case-insensitive LIKE
+	 */
+	def bioDiseaseSearch() {
+		render searchKeywordService.findSearchKeywords('DISEASE', params.term, 10) as JSON
+	}
 
-        render itemlist as JSON;
-    }
+	/**
+	 * Find the top 10 genes with a case-insensitive LIKE
+	 */
+	def bioMarkerSearch() {
+		render searchKeywordService.findSearchKeywords('GENE', params.term, 10) as JSON
+	}
 
-    /**
-     * Find the top 10 compounds with a case-insensitive LIKE
-     */
-    def bioCompoundSearch = {
-        log.info "EXT bioCompoundSearch called"
-        def paramMap = params
-        log.info params
-        render searchKeywordService.findSearchKeywords("COMPOUND", params.term, 10) as JSON
+	/**
+	 * Find the top 10 biosources with a case-insensitive LIKE
+	 */
+	def biosourceSearch = {
+		render searchKeywordService.findSearchKeywords('BIOSOURCE', params.term, 10) as JSON
+	}
 
-    }
-    /**
-     * Find the top 10 diseases with a case-insensitive LIKE
-     */
-    def bioDiseaseSearch = {
-        log.info "EXT bioDiseaseSearch called"
-        def paramMap = params
-        log.info params
-        render searchKeywordService.findSearchKeywords("DISEASE", params.term, 10) as JSON
+	/**
+	 * Find the top 10 diseases, genes, pathways, observations or concepts with a case-insensitive LIKE
+	 */
+	def programTargetSearch() {
 
-    }
+		String value = params.term ? params.term.toUpperCase() : ''
 
-    /**
-     * Find the top 10 genes with a case-insensitive LIKE
-     */
-    def bioMarkerSearch = {
-        log.info "EXT bioMarkerSearch called"
-        def paramMap = params
-        log.info params
+		List<Map> itemlist = []
+		itemlist.addAll searchKeywordService.findSearchKeywords('DISEASE', params.term, 10)
+		itemlist.addAll searchKeywordService.findSearchKeywords('GENE', params.term, 10)
+		itemlist.addAll searchKeywordService.findSearchKeywords('PATHWAY', params.term, 10)
+		itemlist.addAll searchKeywordService.findSearchKeywords('OBSERVATION', params.term, 10)
 
-        render searchKeywordService.findSearchKeywords("GENE", params.term, 10) as JSON
-    }
+		List<ConceptCode> conceptCodes = ConceptCode.executeQuery('''
+				FROM ConceptCode cc
+				WHERE cc.codeTypeName = :codeTypeName
+				and  upper(cc.codeName) LIKE :codeName
+				order by codeTypeName''', [codeTypeName: 'PROGRAM_TARGET_PATHWAY_PHENOTYPE', codeName: value + '%'], [max: 10])
+		for (conceptCode in conceptCodes) {
+			itemlist << [id: conceptCode.uniqueId, label: conceptCode.codeName,
+			             sourceAndCode: conceptCode.uniqueId, categoryId: 'PROGRAM_TARGET',
+			             category: 'Program Target', display: '']
+		}
 
-    /**
-     * Find the top 10 biosources with a case-insensitive LIKE
-     */
-    def biosourceSearch = {
-        log.info "EXT biosourceSearch called"
-        def paramMap = params
-        log.info params
-        render searchKeywordService.findSearchKeywords("BIOSOURCE", params.term, 10) as JSON
+		render(itemlist as JSON)
+	}
 
-    }
+	def bioAssayPlatformSearch() {
+		Map pagingMap = [max: 20]
 
-    /**
-     * Find the top 10 diseases, genes, pathways, observations or concepts with a case-insensitive LIKE
-     */
-    def programTargetSearch = {
-        log.info "EXT programTargetSearch called"
-        def paramMap = params
-        log.info params
-        def itemlist = [];
+		Map paramMap = [:]
+		def itemlist = []
 
-        def value = params.term ? params.term.toUpperCase() : ''
+		String value = params.term.toUpperCase()
+		StringBuilder sb = new StringBuilder('from BioAssayPlatform p where 1=1 ')
 
-        def diseaseJSON = searchKeywordService.findSearchKeywords("DISEASE", params.term, 10) as JSON
-        def list = JSON.parse(diseaseJSON.toString())
-        list.each { itemlist.add(it) }
-        def geneJSON = searchKeywordService.findSearchKeywords("GENE", params.term, 10) as JSON
-        list = JSON.parse(geneJSON.toString())
-        list.each { itemlist.add(it) }
-        def pathwayJSON = searchKeywordService.findSearchKeywords("PATHWAY", params.term, 10) as JSON
-        list = JSON.parse(pathwayJSON.toString())
-        list.each { itemlist.add(it) }
-        def observationJSON = searchKeywordService.findSearchKeywords("OBSERVATION", params.term, 10) as JSON
-        list = JSON.parse(observationJSON.toString())
-        list.each { itemlist.add(it) }
-        def conceptCodes = ConceptCode.executeQuery("FROM ConceptCode cc WHERE cc.codeTypeName = :codeTypeName and  upper(cc.codeName) LIKE :codeName order by codeTypeName", [codeTypeName: 'PROGRAM_TARGET_PATHWAY_PHENOTYPE', codeName: value + "%"], [max: 10]);
-        for (conceptCode in conceptCodes) {
-            itemlist.add([id: conceptCode.uniqueId, label: conceptCode.codeName, sourceAndCode: conceptCode.uniqueId, categoryId: "PROGRAM_TARGET", category: "Program Target", display: ""]);
-        }
+		if (value && value != 'NULL') {
+			sb << ' and upper(p.name) like :term '
+			paramMap.term = value + '%'
+		}
 
-        render itemlist as JSON;
-    }
+		if (params.vendor && params.vendor != 'null') {
+			sb << ' and p.vendor = :vendor '
+			paramMap.vendor = params.vendor
+		}
 
-    def bioAssayPlatformSearch = {
-        log.info "EXT bioAssayPlatformSearch called"
-        log.info params
-        Map pagingMap = [max: 20];
+		if (params.measurement && params.measurement != 'null') {
+			sb << ' and p.platformType = :measurement '
+			paramMap.measurement = params.measurement
+		}
 
-        def paramMap = [:];
-        def itemlist = [];
+		if (params.technology && params.technology != 'null') {
+			sb << ' and p.platformTechnology = :technology '
+			paramMap.technology = params.technology
+		}
 
-        def value = params.term.toUpperCase();
-        StringBuffer sb = new StringBuffer();
-        sb.append("from BioAssayPlatform p where 1=1 ");
+		sb << 'order by platformType, vendor, platformTechnology, name'
 
-        if (value != null && value != "null") {
-            sb.append(" and upper(p.name) like :term ");
-            paramMap.put("term", value + "%");
-        }
+		List<BioAssayPlatform> platforms = BioAssayPlatform.executeQuery(sb.toString(), paramMap, pagingMap)
+		for (platform in platforms) {
+			//+ " -- [MEASUREMENT::"+platform.platformType + " VENDOR::" + platform.vendor + " TECH::" + platform.platformTechnology + "]"
+			String filterString = ''
 
-        if (params.vendor != null && params.vendor != "null") {
-            sb.append(" and p.vendor = :vendor ");
-            paramMap.put("vendor", params.vendor);
-        }
+			if (!params.measurement || params.measurement == 'null') {
+				filterString += ' MEASUREMENT::' + platform.platformType
+			}
 
-        if (params.measurement != null && params.measurement != "null") {
-            sb.append(" and p.platformType = :measurement ");
-            paramMap.put("measurement", params.measurement);
-        }
+			if (!params.technology || params.technology == 'null') {
+				filterString += ' TECHNOLOGY::' + platform.platformTechnology
+			}
 
-        if (params.technology != null && params.technology != "null") {
-            sb.append(" and p.platformTechnology = :technology ");
-            paramMap.put("technology", params.technology);
-        }
+			if (!params.vendor || params.vendor == 'null') {
+				filterString += ' VENDOR::' + platform.vendor
+			}
 
-        // sort
-        sb.append("order by platformType, vendor, platformTechnology, name");
+			if (filterString) {
+				filterString = ' -- [' + filterString + ']'
+			}
 
-        log.info "SB == " + sb.toString()
-        log.info "paramMap = " + paramMap
+			itemlist << [id: platform.uniqueId, label: platform.name + filterString, category: 'PLATFORM', display: 'Platform']
+		}
 
-        def platforms = BioAssayPlatform.executeQuery(sb.toString(), paramMap, pagingMap);
-        // .executeQuery("from BioAssayPlatform p WHERE upper(p.name) LIKE :term  order by platformType, vendor, platformTechnology, name", [term: value+'%'], [max: 20]);
-
-        log.info "Platforms: " + platforms
-
-        for (platform in platforms) {
-            String displayString = platform.name
-            //+ " -- [MEASUREMENT::"+platform.platformType + " VENDOR::" + platform.vendor + " TECH::" + platform.platformTechnology + "]"
-            String filterString = ""
-
-            if (params.measurement == null || params.measurement == "null" || params.measurement == "") {
-                filterString += " MEASUREMENT::" + platform.platformType;
-            }
-
-            if (params.technology == null || params.technology == "null" || params.technology == "") {
-                filterString += " TECHNOLOGY::" + platform.platformTechnology;
-            }
-
-            if (params.vendor == null || params.vendor == "null" || params.vendor == "") {
-                filterString += " VENDOR::" + platform.vendor;
-            }
-
-            if (filterString != "") {
-                filterString = " -- [" + filterString + "]"
-            }
-            displayString = displayString + filterString
-            itemlist.add([id: platform.uniqueId, label: displayString, category: "PLATFORM", display: "Platform"]);
-        }
-
-
-        render itemlist as JSON;
-    }
-
+		render(itemlist as JSON)
+	}
 }

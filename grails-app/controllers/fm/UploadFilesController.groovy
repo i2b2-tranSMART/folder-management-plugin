@@ -1,33 +1,36 @@
 package fm
 
-import org.springframework.web.multipart.commons.CommonsMultipartFile;
+import grails.converters.JSON
+import groovy.util.logging.Slf4j
 
-import fm.FmFolder
-import grails.converters.JSON;
-
+@Slf4j('logger')
 class UploadFilesController {
-    
-    def uploadFilesService
 
-    def index = { }
-    
-    def displayUpload = {
-        def parentFolder = FmFolder.get(params.folderId)
-        log.info("displayUpload template uploadFiles parentFolder '${parentFolder}'")
-        render(template: "uploadFiles", plugin: "folderManagement", model:[parentFolder:parentFolder]);
-    }
-    
-    def upload = {
-        def msg = "Loading failed"
-        def files = request.getFiles('qqfile').each { file ->
-            msg = uploadFilesService.upload(file, params.parentId)
-            log.debug(file.toString()+": "+msg)
-        }
-        log.info("upload msg '${msg}'")
-        def result
-        if(msg == "File successfully loaded") result = [success: true, folderId: params.parentId,
-                                                        folderParentId: params.folderParentId]
-        else result = [success: false, error: msg]
-        render text: result as JSON, contentType: 'text/html'
-    }
+	UploadFilesService uploadFilesService
+
+	def index = {}
+
+	def displayUpload() {
+		FmFolder parentFolder = FmFolder.get(params.folderId)
+		logger.debug 'displayUpload template uploadFiles parentFolder "{}"', parentFolder
+		render template: 'uploadFiles', model: [parentFolder: parentFolder]
+	}
+
+	def upload() {
+		String msg = 'Loading failed'
+		for (file in request.getFiles('qqfile')) {
+			msg = uploadFilesService.upload(file, params.parentId)
+			logger.debug '{}: {}', file,  msg
+		}
+		logger.debug 'upload msg "{}"', msg
+
+		Map result
+		if (msg == 'File successfully loaded') {
+			result = [success: true, folderId: params.parentId, folderParentId: params.folderParentId]
+		}
+		else {
+			result = [success: false, error: msg]
+		}
+		render text: result as JSON, contentType: 'text/html'
+	}
 }

@@ -1,18 +1,18 @@
 <g:javascript>
 
-jQuery(document).ready(function() {	
-	
+jQuery(document).ready(function() {
+
 	var escapedFieldName = '${fieldName}'.replace(".", "\\.");
 	jQuery("#" + escapedFieldName + "-input").autocomplete({
-		source: function( request, response ) {
+		source: function(request, response) {
 			jQuery.ajax({
-				url: '${createLink([action:searchAction,controller:searchController])}',
+				url: '${createLink(action: searchAction, controller: searchController)}',
 				data: {
 					term: request.term,
 					codeTypeName: '${codeTypeName}'
 				},
-				success: function( data ) {
-					response( jQuery.map( data, function(item) {
+				success: function(data) {
+					response(jQuery.map(data, function(item) {
 						return {
 							category: item.category,
 							label: item.label,
@@ -25,9 +25,9 @@ jQuery(document).ready(function() {
 				}
 			});
 		},
-			
-		minLength:0,
-		
+
+		minLength: 0,
+
 		select: function(event, ui) {
 			var sourceAndCode = ui.item.sourceAndCode;
 			var diseaseName = ui.item.label;
@@ -40,37 +40,38 @@ jQuery(document).ready(function() {
 			}).text(diseaseName);
 			$j('#' + escapedFieldName + '-tags').append(newTag);
 			newTag.hide().fadeIn('slow');
-			
+
 			return false;
 		}
-	}).data("uiAutocomplete")._renderItem = function( ul, item ) {
-		
-		var resulta = '<a><span class="category-' + item.category.toLowerCase() + '">' + item.category + '&gt;</span>&nbsp;<b>' + item.label + '</b>&nbsp;';
+	}).data("uiAutocomplete")._renderItem = function(ul, item) {
+
+		var resulta = '<a><span class="category-' + item.category.toLowerCase() + '">' +
+		              item.category + '&gt;</span>&nbsp;<b>' + item.label + '</b>&nbsp;';
 		if (item.synonyms != null) {
 			resulta += (item.synonyms + '</a>');
 		}
 		else {
 			resulta += '</a>';
 		}
-		
-		var returnElement = jQuery('<li></li>')		
-		  .data("item.autocomplete", item )
+
+		var returnElement = jQuery('<li></li>')
+		  .data("item.autocomplete", item)
 		  .append(resulta)
 		  .appendTo(ul);
-		  
+
 		ul.css('height', '');
-		
+
 		//If this addition would expand the list off the screen, limit its height and add a scrollbar
 		var windowHeight = jQuery(window).height();
 		var inputPosition = jQuery("#${fieldName}-input").offset().top;
 		var ulHeight = ul.height();
 		var bottomY = inputPosition + ulHeight + 20;
-		
+
 		if (bottomY > windowHeight) {
 			ul.height(windowHeight - inputPosition - 30);
 			ul.css('overflow', 'auto');
 		}
-		  
+
 		return returnElement;
 	};
 });
