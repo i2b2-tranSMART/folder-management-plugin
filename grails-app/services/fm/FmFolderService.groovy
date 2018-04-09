@@ -18,11 +18,12 @@ import org.apache.http.entity.mime.HttpMultipartMode
 import org.apache.http.entity.mime.MultipartEntity
 import org.apache.http.entity.mime.content.InputStreamBody
 import org.apache.solr.util.SimplePostTool
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.transmart.biomart.BioData
 import org.transmart.biomart.Experiment
 import org.transmart.mongo.MongoUtils
-import org.transmart.searchapp.AuthUser
+import org.transmart.plugin.shared.SecurityService
 import org.transmart.searchapp.SecureObject
 import org.transmart.searchapp.SecureObjectAccess
 import org.transmartproject.db.log.AccessLogService
@@ -71,6 +72,7 @@ class FmFolderService {
 
 	AccessLogService accessLogService
 	def i2b2HelperService
+	@Autowired private SecurityService securityService
 
 	private String getSolrUrl() {
 		solrBaseUrl + '/update'
@@ -178,7 +180,7 @@ class FmFolderService {
 	 *
 	 * @param file file to be proceessed
 	 */
-	private void processFile(FmFolder fmFolder, File file, String customName = null, String description = null) {
+	void processFile(FmFolder fmFolder, File file, String customName = null, String description = null) {
 		logger.info 'Importing file {} into folder {}', file, fmFolder
 
 		// Check if folder already contains file with same name.
@@ -567,12 +569,12 @@ class FmFolderService {
 		}
 	}
 
-	Map<FmFolder, String> getAccessLevelInfoForFolders(AuthUser user, Collection<FmFolder> fmFolders) {
+	Map<FmFolder, String> getAccessLevelInfoForFolders(Collection<FmFolder> fmFolders) {
 		if (!fmFolders) {
 			return [:]
 		}
 
-		boolean isAdmin = user && (user.isAdmin() || user.isDseAdmin())
+		boolean isAdmin = securityService.principal().isAdminOrDseAdmin()
 
 		Map<FmFolder, List<FmFolder>> foldersByStudy = fmFolders.groupBy { it.findParentStudyFolder() }
 
@@ -587,7 +589,7 @@ class FmFolderService {
 
 			studyTokensMap = i2b2HelperService.getSecureTokensForStudies(studyFolderStudyIdMap.values().findAll())
 
-			userAssignedTokens = i2b2HelperService.getSecureTokensWithAccessForUser(user)
+			userAssignedTokens = i2b2HelperService.getSecureTokensWithAccessForUser()
 		}
 
 		Map<FmFolder, String> results = [:]
@@ -611,8 +613,8 @@ class FmFolderService {
 		results
 	}
 
-	Map<FmFolder, String> getFolderContentsWithAccessLevelInfo(AuthUser user, folderId) {
-		getAccessLevelInfoForFolders user, getFolderContents(folderId)
+	Map<FmFolder, String> getFolderContentsWithAccessLevelInfo(folderId) {
+		getAccessLevelInfoForFolders getFolderContents(folderId)
 	}
 
 	String getAssociatedAccession(FmFolder fmFolder) {

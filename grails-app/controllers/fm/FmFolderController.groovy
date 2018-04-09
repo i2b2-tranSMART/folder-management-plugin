@@ -21,6 +21,7 @@ import groovyx.net.http.ContentType
 import groovyx.net.http.HTTPBuilder
 import groovyx.net.http.Method
 import org.apache.commons.lang.StringUtils
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.DataIntegrityViolationException
 import org.transmart.biomart.BioAssayAnalysis
@@ -30,7 +31,7 @@ import org.transmart.biomart.BioDataExternalCode
 import org.transmart.biomart.ConceptCode
 import org.transmart.biomart.Experiment
 import org.transmart.mongo.MongoUtils
-import org.transmart.searchapp.AuthUser
+import org.transmart.plugin.shared.SecurityService
 import org.transmart.searchapp.SearchKeyword
 
 import javax.activation.MimetypesFileTypeMap
@@ -43,8 +44,7 @@ class FmFolderController {
 	//FIXME Quick hack to make title properties act as hyperlinks.
 	//These name properties should be indicated in the database, and the sort value should be specified
 	//(needs a rewrite of our ExportTable)
-	private static
-	final List<String> nameProperties = ['assay name', 'analysis name', 'study title', 'program title', 'folder name']
+	private static final List<String> nameProperties = ['assay name', 'analysis name', 'study title', 'program title', 'folder name']
 
 	static allowedMethods = [save: 'POST', update: 'POST', delete: 'POST']
 	static defaultAction = 'list'
@@ -54,7 +54,7 @@ class FmFolderController {
 	FmFolderService fmFolderService
 	def ontologyService
 	def solrFacetService
-	def springSecurityService
+	@Autowired private SecurityService securityService
 
 	@Value('${transmartproject.mongoFiles.enableMongo:false}')
 	private boolean enableMongo
@@ -496,8 +496,7 @@ class FmFolderController {
 
 		Boolean auto = params.boolean('auto')
 		//Flag for whether folder was automatically opened - if not, then it shouldn't respect the folder mask
-		AuthUser user = AuthUser.findByUsername(springSecurityService.getPrincipal().username)
-		Map<FmFolder, String> folderContentsAccessLevelMap = fmFolderService.getFolderContentsWithAccessLevelInfo(user, id)
+		Map<FmFolder, String> folderContentsAccessLevelMap = fmFolderService.getFolderContentsWithAccessLevelInfo(id)
 		List<FmFolder> folderContents = folderContentsAccessLevelMap.keySet() as List
 		def folderSearchLists = session.folderSearchList
 		if (!folderSearchLists) {
@@ -807,11 +806,10 @@ class FmFolderController {
 					platforms = BioAssayPlatform.executeQuery('FROM BioAssayPlatform as p ORDER BY p.name')
 				}
 
-				AuthUser user = AuthUser.findByUsername(springSecurityService.principal.username)
 				for (String type in fmFolderService.getChildrenFolderTypes(folder.id)) {
 					List<FmFolder> subFolders = fmFolderService.getChildrenFolderByType(folder.id, type)
 					if (subFolders) {
-						Map<FmFolder, String> subFoldersAccessLevelMap = fmFolderService.getAccessLevelInfoForFolders(user, subFolders)
+						Map<FmFolder, String> subFoldersAccessLevelMap = fmFolderService.getAccessLevelInfoForFolders(subFolders)
 						String gridTitle = 'Associated ' + StringUtils.capitalize(subFolders[0].pluralFolderTypeName.toLowerCase())
 						jsonForGrids << createDataTable(subFoldersAccessLevelMap, gridTitle)
 					}
@@ -1256,18 +1254,13 @@ class FmFolderController {
 	}
 
 	private boolean isAdmin() {
-		if ('anonymousUser' != springSecurityService.getPrincipal()) {
-			def user = AuthUser.findByUsername(springSecurityService.getPrincipal().username)
-			if (!user.isAdmin()) {
-				render 'You do not have permission to edit this object\'s metadata.'
-				return false
-			}
+		if (securityService.principal().isAdmin()) {
+			true
 		}
 		else {
-			render 'You do not have permission to edit this object\'s metadata.'
-			return false
+			render '''You do not have permission to edit this object's metadata.'''
+			false
 		}
-		return true
 	}
 
 	def getFolderFiles(String id, String accession, String folderId) {
