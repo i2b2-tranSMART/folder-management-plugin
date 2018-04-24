@@ -1,7 +1,9 @@
 package fm
 
+import groovy.util.logging.Slf4j
 import org.transmart.biomart.BioData
 
+@Slf4j('logger')
 class FmFolderAssociation implements Serializable {
 	private static final long serialVersionUID = 1
 
@@ -32,7 +34,7 @@ class FmFolderAssociation implements Serializable {
 
 	// TODO BB move this and lookupDomainClass() to a service and call that directly
 	def getBioObject() {
-		log.info "ObjectUID=$objectUid"
+		logger.info 'ObjectUID={}', objectUid
 		BioData bioData = BioData.findByUniqueId(objectUid)
 		if (bioData) {
 			lookupDomainClass()?.get(bioData.id)
@@ -52,7 +54,7 @@ class FmFolderAssociation implements Serializable {
 			clazz
 		}
 		else {
-			log.error "Class not found: '$domainClassName'"
+			logger.error 'Class not found: "{}"', domainClassName
 		}
 	}
 

@@ -62,10 +62,10 @@ public class SimplePostTool {
     static HashMap<String, String> mimeMap;
     GlobFileFilter globFileFilter;
     // Backlog for crawling
-    List<LinkedHashSet<URL>> backlog = new ArrayList<LinkedHashSet<URL>>();
+    List<LinkedHashSet<URL>> backlog = new ArrayList<>();
     Set<URL> visited = new HashSet<URL>();
 
-    static final Set<String> DATA_MODES = new HashSet<String>();
+    static final Set<String> DATA_MODES = new HashSet<>();
     static final String USAGE_STRING_SHORT =
             "Usage: java [SystemProperties] -jar post.jar [-h|-] [<file|folder|url|arg> [<file|folder|url|arg>...]]";
 
@@ -289,8 +289,8 @@ public class SimplePostTool {
     private void reset() {
         fileTypes = DEFAULT_FILE_TYPES;
         globFileFilter = this.getFileFilterFromFileTypes(fileTypes);
-        backlog = new ArrayList<LinkedHashSet<URL>>();
-        visited = new HashSet<URL>();
+        backlog = new ArrayList<>();
+        visited = new HashSet<>();
     }
 
 
@@ -916,7 +916,7 @@ public class SimplePostTool {
     public static String getXP(Node n, String xpath, boolean concatAll)
             throws XPathExpressionException {
         NodeList nodes = getNodesFromXP(n, xpath);
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         if (nodes.getLength() > 0) {
             for (int i = 0; i < nodes.getLength(); i++) {
                 sb.append(nodes.item(i).getNodeValue() + " ");
@@ -1040,7 +1040,7 @@ public class SimplePostTool {
             String strRobot = url.getProtocol() + "://" + host + "/robots.txt";
             List<String> disallows = robotsCache.get(host);
             if (disallows == null) {
-                disallows = new ArrayList<String>();
+                disallows = new ArrayList<>();
                 URL urlRobot;
                 try {
                     urlRobot = new URL(strRobot);
@@ -1071,7 +1071,7 @@ public class SimplePostTool {
          * @throws IOException if problems reading the stream
          */
         protected List<String> parseRobotsTxt(InputStream is) throws IOException {
-            List<String> disallows = new ArrayList<String>();
+            List<String> disallows = new ArrayList<>();
             BufferedReader r = new BufferedReader(new InputStreamReader(is, "UTF-8"));
             String l;
             while ((l = r.readLine()) != null) {

@@ -3,6 +3,7 @@ package fm
 import com.mongodb.MongoClient
 import com.mongodb.gridfs.GridFS
 import com.mongodb.gridfs.GridFSInputFile
+import grails.transaction.Transactional
 import groovy.util.logging.Slf4j
 import groovyx.net.http.HTTPBuilder
 import groovyx.net.http.Method
@@ -12,13 +13,13 @@ import org.apache.http.entity.mime.content.InputStreamBody
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.web.multipart.commons.CommonsMultipartFile
 import org.transmart.mongo.MongoUtils
+import org.transmart.plugin.shared.UtilService
 
 @Slf4j('logger')
 class UploadFilesService {
 
-	static transactional = false
-
 	FmFolderService fmFolderService
+	UtilService utilService
 
 	@Value('${transmartproject.mongoFiles.enableMongo:false}')
 	private boolean enableMongo
@@ -44,6 +45,7 @@ class UploadFilesService {
 	@Value('${transmartproject.mongoFiles.useDriver:false}')
 	private boolean useDriver
 
+	@Transactional
 	def upload(CommonsMultipartFile fileToUpload, String parentId) {
 		FmFile fmFile
 		try {
@@ -176,9 +178,7 @@ class UploadFilesService {
 			true
 		}
 		else {
-			o.errors.each {
-				logger.error '{}: {}', message, it
-			}
+			logger.error '{}', utilService.errorStrings(o)
 			false
 		}
 	}

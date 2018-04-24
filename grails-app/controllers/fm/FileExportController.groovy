@@ -265,14 +265,14 @@ class FileExportController {
 									if (bioData != null) {
 										def concept = ConceptCode.findById(bioData.id)
 										if (concept != null) {
-											if (values != "") {
+											if (values) {
 												values += '; '
 											}
 											values += concept.codeName
 										}
 									}
 								}
-								if (values.compareTo("") == 0 && value != null) {
+								if (!values && value) {
 									values = value
 								}
 								zipStream.write((amTagItem.displayName + ': ' + values + '\r\n').getBytes())
@@ -316,7 +316,7 @@ class FileExportController {
 									if (bioData != null) {
 										def concept = ConceptCode.findById(bioData.id)
 										if (concept != null) {
-											if (values != "") {
+											if (values) {
 												values += '; '
 											}
 											values += concept.codeName
@@ -334,7 +334,7 @@ class FileExportController {
 								def tagValue = (tagAssoc.objectUid).split(':', 2)[1]
 								def bap = BioAssayPlatform.findByAccession(tagValue)
 								if (bap != null) {
-									if (values != "") {
+									if (values) {
 										values += '; '
 									}
 									values += bap.platformType + '/' + bap.platformTechnology + '/' + bap.vendor + '/' + bap.name
@@ -348,7 +348,7 @@ class FileExportController {
 							for (tagAssoc in tagAssocs) {
 								def key = SearchKeyword.findByUniqueId(tagAssoc.objectUid)
 								if (key != null) {
-									if (values != "") {
+									if (values) {
 										values += '; '
 									}
 									values += key.keyword
@@ -358,7 +358,7 @@ class FileExportController {
 									if (bioData != null) {
 										def concept = ConceptCode.findById(bioData.id)
 										if (concept != null) {
-											if (values != "") {
+											if (values) {
 												values += '; '
 											}
 											values += concept.codeName

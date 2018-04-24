@@ -8,6 +8,7 @@ import com.mongodb.MongoClient
 import com.mongodb.gridfs.GridFS
 import com.mongodb.gridfs.GridFSDBFile
 import com.recomdata.util.FolderType
+import grails.transaction.Transactional
 import groovy.util.logging.Slf4j
 import groovyx.net.http.ContentType
 import groovyx.net.http.HTTPBuilder
@@ -81,6 +82,7 @@ class FmFolderService {
 	/**
 	 * Imports files processing them into filestore and indexing them with SOLR.
 	 */
+	@Transactional
 	void importFiles() {
 
 		logger.info 'importFiles() called'
@@ -120,6 +122,7 @@ class FmFolderService {
 	/**
 	 * Process files and sub-directories in specified directory.
 	 */
+	@Transactional
 	def processDirectory(File directory) {
 		def fmFolder = null
 		/* null: uninitialized; false: not a folder */
@@ -180,6 +183,7 @@ class FmFolderService {
 	 *
 	 * @param file file to be proceessed
 	 */
+	@Transactional
 	void processFile(FmFolder fmFolder, File file, String customName = null, String description = null) {
 		logger.info 'Importing file {} into folder {}', file, fmFolder
 
@@ -428,6 +432,7 @@ class FmFolderService {
 		FmData.executeUpdate('delete FmData fd where not exists (Select fm from FmFolder fm where fm.id = fd.id)')
 	}
 
+	@Transactional
 	void deleteStudy(FmFolder study) {
 		deleteFolder study
 		//Delete child elements
@@ -456,6 +461,7 @@ class FmFolderService {
 		deleteFromFmApp study
 	}
 
+	@Transactional
 	void deleteProgram(FmFolder program) {
 		deleteFolder program
 		for (FmFolder child in program.children) {
@@ -472,6 +478,7 @@ class FmFolderService {
 		deleteFromFmApp program
 	}
 
+	@Transactional
 	void deleteFolder(FmFolder folder) {
 		//Delete all files within this folder.
 		//Convert PersistentSets to list to avoid concurrent modification
@@ -499,6 +506,7 @@ class FmFolderService {
 		new File(new File(filestoreDirectory, file.filestoreLocation), file.filestoreName)
 	}
 
+	@Transactional
 	boolean deleteFile(FmFile file) {
 		boolean deleted = false
 		try {
@@ -628,7 +636,7 @@ class FmFolderService {
 			return fmFolder.uniqueId
 		}
 
-		if (fmFolder.folderType.equals(FolderType.STUDY.name())) {
+		if (fmFolder.folderType == FolderType.STUDY.name()) {
 			def experiment = FmFolderAssociation.findByFmFolder(fmFolder)?.bioObject
 			if (!experiment) {
 				logger.error 'No experiment associated with study folder: {}', fmFolder.folderFullName

@@ -507,11 +507,11 @@ class FmFolderController {
 		String uniqueLeavesString = folderSearchLists[1] ? folderSearchLists[1].join(',') + ',' : ''
 		def nodesToExpand = session.rwgOpenedNodes
 		//check that all folders from folderContents are in the search path, or children of nodes in the search path
-		if (folderSearchLists[0].size() > 0) {
+		if (folderSearchLists[0]) {
 			for (folder in folderContents) {
 				boolean found = false
 				for (String path in folderSearchLists[0]) {
-					if (path.indexOf(folder.folderFullName) > -1 || folder.folderFullName.indexOf(path) > -1) {
+					if (path.contains(folder.folderFullName) || folder.folderFullName.contains(path)) {
 						found = true
 						break
 					}
@@ -526,7 +526,7 @@ class FmFolderController {
 		//if there is an accession in filters, add the study node (there is just one) in the array for nodes to expand
 		def filters = session.rwgSearchFilter
 		for (filter in filters) {
-			if (filter && filter.indexOf('|ACCESSION;') > -1) {
+			if (filter?.contains('|ACCESSION;')) {
 				for (folder in folderContents) {
 					if (folder.folderType == 'STUDY') {
 						if (!nodesToExpand.grep(folder.uniqueId)) {
@@ -715,7 +715,7 @@ class FmFolderController {
 							logger.error 'FIXED ATTRIBUTE ERROR::Unknown tagItemSubType'
 						}
 
-						newrow.put(amTagItem.id.toString(), bioDataDisplayValue ? bioDataDisplayValue : '')
+						newrow.put(amTagItem.id.toString(), bioDataDisplayValue ?: '')
 					}
 					else if (amTagItem.tagItemType == 'CUSTOM') {
 						Collection<AmTagDisplayValue> tagValues = AmTagDisplayValue.findAllDisplayValue(folderObject.uniqueId, amTagItem.id)
