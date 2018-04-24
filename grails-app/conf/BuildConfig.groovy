@@ -1,5 +1,8 @@
 grails.project.work.dir = 'target'
 
+grails.project.source.level = 1.7
+grails.project.target.level = 1.7
+
 grails.project.dependency.resolver = 'maven'
 grails.project.dependency.resolution = {
 
@@ -7,7 +10,7 @@ grails.project.dependency.resolution = {
 	log 'warn'
 
 	repositories {
-		mavenLocal() // Note: use 'grails maven-install' to install required plugins locally
+		mavenLocal()
 		grailsCentral()
 		mavenCentral()
 		mavenRepo 'http://ec2-35-170-59-132.compute-1.amazonaws.com:8080/artifactory/libs-snapshots'
@@ -26,6 +29,7 @@ grails.project.dependency.resolution = {
 			excludes 'groovy', 'nekohtml'
 		}
 		compile 'org.mongodb:mongo-java-driver:2.10.1'
+		test 'org.grails:grails-datastore-test-support:1.0.2-grails-2.4'
 	}
 
 	plugins {
