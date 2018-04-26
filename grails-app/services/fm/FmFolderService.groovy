@@ -2,6 +2,8 @@ package fm
 
 import annotation.AmData
 import annotation.AmTagAssociation
+import annotation.AmTagItem
+import annotation.AmTagTemplate
 import annotation.AmTagTemplateAssociation
 import annotation.AmTagValue
 import com.mongodb.MongoClient
@@ -9,6 +11,7 @@ import com.mongodb.gridfs.GridFS
 import com.mongodb.gridfs.GridFSDBFile
 import com.recomdata.util.FolderType
 import grails.transaction.Transactional
+import grails.validation.ValidationException
 import groovy.util.logging.Slf4j
 import groovyx.net.http.ContentType
 import groovyx.net.http.HTTPBuilder
@@ -19,12 +22,14 @@ import org.apache.http.entity.mime.HttpMultipartMode
 import org.apache.http.entity.mime.MultipartEntity
 import org.apache.http.entity.mime.content.InputStreamBody
 import org.apache.solr.util.SimplePostTool
+import org.codehaus.groovy.grails.web.servlet.mvc.GrailsParameterMap
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.transmart.biomart.BioData
 import org.transmart.biomart.Experiment
 import org.transmart.mongo.MongoUtils
 import org.transmart.plugin.shared.SecurityService
+import org.transmart.searchapp.AccessLog
 import org.transmart.searchapp.SecureObject
 import org.transmart.searchapp.SecureObjectAccess
 import org.transmartproject.db.log.AccessLogService
@@ -750,6 +755,238 @@ class FmFolderService {
 				[fl: folder.folderLevel + 1, fn: folder.folderFullName + '%'])
 	}
 
+	/**
+	 * Validates and saves folder, associated business, and metadata fields.
+	 * @param object associated business object or folder, if there is none
+	 */
+	@Transactional
+	void saveFolder(FmFolder folder, object, GrailsParameterMap params) {
+
+		AmTagTemplate template = AmTagTemplate.findByTagTemplateType(folder.folderType)
+
+		// If this is new folder, then use viewInGrid items for validation, otherwise use editable items.
+		String column
+		if (folder.id == null) {
+			column = 'viewInGrid'
+		}
+		else {
+			column = 'editable'
+		}
+
+		String hql = 'from AmTagItem ati where ati.amTagTemplate.id = :templateId and ati.' + column + ' = 1 order by displayOrder'
+		List<AmTagItem> items = AmTagItem.findAll(hql, [templateId: template.id])
+
+		validateFolder folder, object, items, params
+		doSaveFolder folder, object, template, items, params
+	}
+
+	/**
+	 * Validates required folder and meta data fields.
+	 */
+	private void validateFolder(FmFolder folder, object, List<AmTagItem> items, GrailsParameterMap params) {
+
+		if (object instanceof Experiment && object.id) {
+			List<FmFolder> existingFolders = FmFolder.executeQuery('''
+					select ff
+					from BioData bdu, FmFolderAssociation fla, FmFolder ff
+					where fla.objectUid = bdu.uniqueId
+					  and fla.fmFolder = ff
+					  and bdu.id = ?
+					  and ff.activeInd = true''',
+					[object.id])
+			if (existingFolders && existingFolders[0] != folder) {
+				folder.errors.rejectValue 'id', 'blank',
+						['StudyId'] as String[], '{0} must be unique.'
+			}
+		}
+		// Validate folder specific fields, if there is no business object
+		if (folder == object) {
+			List<Map<String, String>> fields = [[displayName: 'Name', fieldName: 'folderName'],
+			               [displayName: 'Description', fieldName: 'description']]
+			for (Map<String, String> field in fields) {
+				def value = params[field.fieldName]
+				if (!value) {
+					folder.errors.rejectValue field.fieldName, 'blank',
+							[field.displayName] as String[], '{0} field requires a value.'
+				}
+			}
+		}
+
+		for (AmTagItem item in items) {
+			if (item.required) {
+				def value = null
+				if (item.tagItemType == 'FIXED') {
+					value = params.list(item.tagItemAttr)
+				}
+				else {
+					value = params.list('amTagItem_' + item.id)
+				}
+				if (!value || value[0] == null || value[0].length() == 0) {
+					folder.errors.rejectValue 'id', 'blank',
+							[item.displayName] as String[], '{0} field requires a value.'
+				}
+				// TODO: Check for max values
+			}
+			else {
+				logger.info '{} not required', item.displayName
+			}
+
+			//check for unique study identifer
+			if (item.codeTypeName == 'STUDY_IDENTIFIER') {
+				Experiment experiment = Experiment.findByAccession(params.list(item.tagItemAttr));
+				if (experiment && object == experiment && (!(object instanceof Experiment))) {
+					folder.errors.rejectValue 'id', 'blank',
+							[item.displayName] as String[], '{0} must be unique.'
+				}
+			}
+		}
+
+		if (folder.hasErrors()) {
+			throw new ValidationException('Validation errors occurred.', folder.errors)
+		}
+	}
+
+	/**
+	 * Saves folder, associated business object, and metadata fields
+	 * @param folder folder to be saved
+	 * @param object associated business object or folder, if there is none
+	 * @param template tag template associated with folder
+	 * @param items items associated with template
+	 * @param params field values to be saved
+	 * @throws ValidationException if there are any errors persisting data to the database
+	 */
+	private void doSaveFolder(FmFolder folder, object, AmTagTemplate template, List<AmTagItem> items,
+	                          GrailsParameterMap params) {
+
+		// Save folder object
+		folder.save(flush: true, failOnError: true)
+
+		// Using items associated with this folder's template, set business object property values or create tags.
+		for (tagItem in items) {
+			def newValue
+			if (tagItem.tagItemType == 'FIXED') {
+				newValue = params[tagItem.tagItemAttr]
+				if (newValue != null) {
+					String value = ''
+					if (tagItem.tagItemSubtype == 'MULTIPICKLIST') {
+						newValue = params.list(tagItem.tagItemAttr)
+						if (newValue) {
+							for (it in newValue) {
+								if (value) {
+									value += '|'
+								}
+								value += it
+							}
+						}
+					}
+					else {
+						value = newValue
+					}
+					object[tagItem.tagItemAttr] = value
+				}
+			}
+			else if (tagItem.tagItemType == 'CUSTOM') {
+				newValue = params['amTagItem_' + tagItem.id]
+				if (tagItem.tagItemSubtype == 'FREETEXT' || tagItem.tagItemSubtype == 'FREETEXTAREA') {
+					AmTagAssociation.executeUpdate '''
+							delete from AmTagAssociation as ata
+							where ata.objectType=:objectType
+							and ata.subjectUid=:subjectUid
+							and ata.tagItemId=:tagItemId''',
+							[objectType: 'AM_TAG_VALUE', subjectUid: folder.uniqueId, tagItemId: tagItem.id]
+					if (newValue) {
+						AmTagValue newTagValue = new AmTagValue(value: newValue)
+						newTagValue.save(flush: true, failOnError: true)
+						new AmTagAssociation(
+								objectType: 'AM_TAG_VALUE',
+								subjectUid: folder.uniqueId,
+								objectUid: newTagValue.uniqueId,
+								tagItemId: tagItem.id).save(flush: true, failOnError: true)
+					}
+				}
+				else if (tagItem.tagItemSubtype == 'PICKLIST') {
+					AmTagAssociation.executeUpdate '''
+							delete from AmTagAssociation as ata
+							where ata.objectType=:objectType
+							and ata.subjectUid=:subjectUid
+							and ata.tagItemId=:tagItemId''',
+							[objectType: 'BIO_CONCEPT_CODE', subjectUid: folder.uniqueId, tagItemId: tagItem.id]
+					if (newValue) {
+						new AmTagAssociation(
+								objectType: 'BIO_CONCEPT_CODE',
+								subjectUid: folder.uniqueId,
+								objectUid: newValue,
+								tagItemId: tagItem.id).save(flush: true, failOnError: true)
+					}
+				}
+				else if (tagItem.tagItemSubtype == 'MULTIPICKLIST') {
+					AmTagAssociation.executeUpdate '''
+						delete from AmTagAssociation as ata
+						where ata.objectType=:objectType
+						  and ata.subjectUid=:subjectUid
+						  and ata.tagItemId=:tagItemId''',
+							[objectType: 'BIO_CONCEPT_CODE', subjectUid: folder.uniqueId, tagItemId: tagItem.id]
+					for (it in params.list('amTagItem_' + tagItem.id)) {
+						if (it) {
+							new AmTagAssociation(
+									objectType: 'BIO_CONCEPT_CODE',
+									subjectUid: folder.uniqueId,
+									objectUid: it,
+									tagItemId: tagItem.id).save(flush: true, failOnError: true)
+						}
+						else {
+							logger.error 'amTagItem_{} is null', tagItem.id
+						}
+					}
+				}
+			}
+			else {
+				AmTagAssociation.executeUpdate('''
+						delete from AmTagAssociation as ata
+						where ata.objectType=:objectType
+						  and ata.subjectUid=:subjectUid
+						  and ata.tagItemId=:tagItemId''',
+						[objectType: tagItem.tagItemType,
+						 subjectUid: folder.uniqueId,
+						 tagItemId: tagItem.id])
+				for (it in params.list('amTagItem_' + tagItem.id)) {
+					if (it) {
+						new AmTagAssociation(
+								objectType: tagItem.tagItemType,
+								subjectUid: folder.uniqueId,
+								objectUid: it,
+								tagItemId: tagItem.id).save(flush: true, failOnError: true)
+					}
+					else {
+						logger.error 'amTagItem_{} is null', tagItem.id
+					}
+				}
+			}
+		}
+
+		// Create tag template association between folder and template, if it does not already exist
+		AmTagTemplateAssociation templateAssoc = AmTagTemplateAssociation.findByObjectUid(folder.uniqueId)
+		if (templateAssoc == null) {
+			new AmTagTemplateAssociation(tagTemplateId: template.id, objectUid: folder.uniqueId).save(flush: true, failOnError: true)
+			accessLog 'Browse-Create object', folder.folderType + ': ' + folder.folderName + ' (' + folder.uniqueId + ')'
+		}
+		else {
+			accessLog 'Browse-Modify object', folder.folderType + ': ' + folder.folderName + ' (' + folder.uniqueId + ')'
+		}
+
+		// If there is business object associated with folder, then save it and create association, if it does not exist.
+		if (object != folder) {
+			object.save(flush: true, failOnError: true)
+			FmFolderAssociation folderAssoc = FmFolderAssociation.findByFmFolder(folder)
+			if (!folderAssoc) {
+				new FmFolderAssociation(
+						objectUid: BioData.get(object.id).uniqueId,
+						objectType: object.getClass().name,
+						fmFolder: folder).save(flush: true, failOnError: true)
+			}
+		}
+	}
+
 	private boolean save(o) {
 		if (o.save(flush: true)) {
 			true
@@ -760,5 +997,9 @@ class FmFolderService {
 			}
 			false
 		}
+	}
+
+	private void accessLog(String event, String message) {
+		new AccessLog(username: securityService.currentUsername(), event: event, eventmessage: message, accesstime: new Date()).save()
 	}
 }
