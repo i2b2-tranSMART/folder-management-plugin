@@ -60,19 +60,19 @@ jQuery('.tag').live('click', function(e) { removeTag(jQuery(this).parent().attr(
 		<div style="margin-right: 8px">
 			<div class="textsmaller">Measurement</div>
 			<div id="measurementwrapper">
-				<g:render template='selectMeasurements' model="${[measurements: measurements]}"/>
+				<g:render template='selectMeasurements' model="[measurements: measurements]"/>
 			</div>
 		</div>
 		<div style="margin-right: 8px">
 			<div class="textsmaller">Technology</div>
 			<div id="technologywrapper">
-				<g:render template='selectTechnologies' model="${[technologies: technologies]}"/>
+				<g:render template='selectTechnologies' model="[technologies: technologies]"/>
 			</div>
 		</div>
 		<div style="margin-right: 8px">
 			<div class="textsmaller">Vendor</div>
 			<div id="vendorwrapper">
-				<g:render template='selectVendors' model="${[vendors: vendors]}"/>
+				<g:render template='selectVendors' model="[vendors: vendors]"/>
 			</div>
 		</div>
 	</div>

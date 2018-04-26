@@ -28,8 +28,8 @@ def metaDataService = grailsApplication.mainContext.metaDataService
 			<g:elseif test="${amTagItem.tagItemSubtype == 'MULTIPICKLIST'}">
 			<g:set var='fValue' value="${fieldValue(bean: bioDataObject, field: amTagItem.tagItemAttr)}"/>
 			<g:set var='displayValues' value="${metaDataService.getViewValues(fValue)}"/>
-			<g:render template='extTagSearchField' model="${[fieldName: amTagItem.tagItemAttr, codeTypeName: amTagItem.codeTypeName,
-			                                                 searchAction: 'extSearch', searchController: 'metaData', values: displayValues]}"/>
+			<g:render template='extTagSearchField' model="[fieldName: amTagItem.tagItemAttr, codeTypeName: amTagItem.codeTypeName,
+			                                               searchAction: 'extSearch', searchController: 'metaData', values: displayValues]"/>
 			</g:elseif>
 			<g:elseif test="${amTagItem.tagItemSubtype == 'FREETEXT'}">
 			<g:if test="${fieldValue(bean: bioDataObject, field: amTagItem.tagItemAttr).length() < 100}">
@@ -68,8 +68,8 @@ def metaDataService = grailsApplication.mainContext.metaDataService
 					optionKey='uniqueId' optionValue='codeName' noSelection="['': '-Select One-']"/>
 			</g:elseif>
 			<g:elseif test="${amTagItem.tagItemSubtype == 'MULTIPICKLIST'}">
-			<g:render template='extTagSearchField' model="${[fieldName: "amTagItem_" + amTagItem.id, codeTypeName: amTagItem.codeTypeName,
-				                    searchAction: 'extSearch', searchController: 'metaData', values: tagValues]}"/>
+			<g:render template='extTagSearchField' model="[fieldName: "amTagItem_" + amTagItem.id, codeTypeName: amTagItem.codeTypeName,
+				                    searchAction: 'extSearch', searchController: 'metaData', values: tagValues]"/>
 			</g:elseif>
 			</g:else>
 			</g:elseif>
@@ -78,16 +78,16 @@ def metaDataService = grailsApplication.mainContext.metaDataService
 			<g:set var='tagValues' value="${AmTagDisplayValue.findAllBySubjectUidAndAmTagItem(folder.uniqueId, amTagItem)}"/>
 			</g:if>
 			<g:if test="${amTagItem.tagItemSubtype == 'COMPOUNDPICKLIST'}">
-			<g:render template="${amTagItem.guiHandler}" model="${[measurements: measurements, technologies: technologies,
-			                                                       vendors: vendors, platforms: platforms,
-			                                                       fieldName: 'amTagItem_' + amTagItem.id,
-			                                                       searchAction: amTagItem.guiHandler + 'Search',
-			                                                       searchController: 'metaData', values: tagValues]}"/>
+			<g:render template="${amTagItem.guiHandler}" model="[measurements: measurements, technologies: technologies,
+			                                                     vendors: vendors, platforms: platforms,
+			                                                     fieldName: 'amTagItem_' + amTagItem.id,
+			                                                     searchAction: amTagItem.guiHandler + 'Search',
+			                                                     searchController: 'metaData', values: tagValues]"/>
 			</g:if>
 			<g:else>
-			<g:render template='extBusinessObjSearch' model="${[fieldName: 'amTagItem_' + amTagItem.id,
-			                                                    searchAction: amTagItem.guiHandler + 'Search',
-			                                                    searchController: 'metaData', values: tagValues]}"/>
+			<g:render template='extBusinessObjSearch' model="[fieldName: 'amTagItem_' + amTagItem.id,
+			                                                  searchAction: amTagItem.guiHandler + 'Search',
+			                                                  searchController: 'metaData', values: tagValues]"/>
 			</g:else>
 			</g:else>
 		</td>

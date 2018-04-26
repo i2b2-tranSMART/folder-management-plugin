@@ -1,7 +1,7 @@
 <g:form name="createAnalysisForm">
 	<g:hiddenField name="id" value="${folder?.id}"/>
 	<g:hiddenField name="folderType" value="${folder?.folderType}"/>
-	<g:hiddenField name="parentId" value="${folder?.parent?.id}"/>
+	<g:hiddenField name="parentId" value="${folder?.parentId}"/>
 	<g:set var="objectUid" value="${folder?.uniqueId}"/>
 
 	<div id="displayAnalysisErrors">
