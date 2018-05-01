@@ -90,11 +90,11 @@ class FmFolderController {
 		}
 
 		if (!mimeTypesFile) {
-			logger.warn 'Could not find a mime.types file'
+			FmFolderController.logger.warn 'Could not find a mime.types file'
 			return new MimetypesFileTypeMap()
 		}
 
-		logger.debug 'Loading mime.types file on {}', mimeTypesFile
+		FmFolderController.logger.debug 'Loading mime.types file on {}', mimeTypesFile
 		mimeTypesFile.withInputStream {
 			new MimetypesFileTypeMap(it)
 		}
