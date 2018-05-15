@@ -29,7 +29,7 @@ import org.transmart.biomart.BioData
 import org.transmart.biomart.Experiment
 import org.transmart.mongo.MongoUtils
 import org.transmart.plugin.shared.SecurityService
-import org.transmart.searchapp.AccessLog
+import org.transmart.plugin.shared.UtilService
 import org.transmart.searchapp.SecureObject
 import org.transmart.searchapp.SecureObjectAccess
 import org.transmartproject.db.log.AccessLogService
@@ -79,6 +79,7 @@ class FmFolderService {
 	AccessLogService accessLogService
 	def i2b2HelperService
 	@Autowired private SecurityService securityService
+	@Autowired private UtilService utilService
 
 	private String getSolrUrl() {
 		solrBaseUrl + '/update'
@@ -968,10 +969,10 @@ class FmFolderService {
 		AmTagTemplateAssociation templateAssoc = AmTagTemplateAssociation.findByObjectUid(folder.uniqueId)
 		if (templateAssoc == null) {
 			new AmTagTemplateAssociation(tagTemplateId: template.id, objectUid: folder.uniqueId).save(flush: true, failOnError: true)
-			accessLog 'Browse-Create object', folder.folderType + ': ' + folder.folderName + ' (' + folder.uniqueId + ')'
+			accessLogService.report 'Browse-Create object', folder.folderType + ': ' + folder.folderName + ' (' + folder.uniqueId + ')'
 		}
 		else {
-			accessLog 'Browse-Modify object', folder.folderType + ': ' + folder.folderName + ' (' + folder.uniqueId + ')'
+			accessLogService.report 'Browse-Modify object', folder.folderType + ': ' + folder.folderName + ' (' + folder.uniqueId + ')'
 		}
 
 		// If there is business object associated with folder, then save it and create association, if it does not exist.
@@ -992,14 +993,8 @@ class FmFolderService {
 			true
 		}
 		else {
-			o.errors.each {
-				logger.error '{}', it
-			}
+			logger.error '{}', utilService.errorStrings(o)
 			false
 		}
-	}
-
-	private void accessLog(String event, String message) {
-		new AccessLog(username: securityService.currentUsername(), event: event, eventmessage: message, accesstime: new Date()).save()
 	}
 }
