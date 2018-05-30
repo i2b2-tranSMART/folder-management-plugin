@@ -18,7 +18,7 @@ class AmTagTemplateService {
 			logger.debug 'amTagTemplateAssociation = {} for key = {}', amTagTemplateAssociation, key
 		}
 		else {
-			log.error 'Unable to retrieve an AmTagTemplateAssociation with a null key value'
+			logger.error 'Unable to retrieve an AmTagTemplateAssociation with a null key value'
 		}
 
 		AmTagTemplate amTagTemplate
@@ -34,5 +34,4 @@ class AmTagTemplateService {
 
 		amTagTemplate
 	}
-
 }
